@@ -31,8 +31,8 @@ A React-based file sharing application that allows users to securely share files
 1. Clone the repository:
 
 ```bash
-git clone <repository-url>
-cd Media-viewer
+git clone "https://github.com/shivamgupta1319/MediaCast.git"
+cd MediaCast
 ```
 
 2. Install dependencies:
