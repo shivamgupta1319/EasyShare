@@ -11,34 +11,38 @@ export function AuthProvider({ children }) {
     const [currentUser, setCurrentUser] = useState(null);
     const [loading, setLoading] = useState(true);
 
-    function signup(email, password) {
-        // Check if user already exists
-        const existingUser = findUserByEmail(email);
-        if (existingUser) {
-            return Promise.reject(new Error('User already exists'));
-        }
+    async function signup(email, password) {
+        try {
+            const existingUser = await findUserByEmail(email);
+            if (existingUser) {
+                throw new Error('User already exists');
+            }
 
-        // Create new user
-        const newUser = createUser(email, password);
-        setCurrentUser(newUser);
-        // Save current user to session storage
-        sessionStorage.setItem('currentUser', JSON.stringify(newUser));
-        return Promise.resolve(newUser);
+            const newUser = await createUser(email, password);
+            // Remove password before setting to state
+            const { password: _, ...userWithoutPassword } = newUser;
+            setCurrentUser(userWithoutPassword);
+            sessionStorage.setItem('currentUser', JSON.stringify(userWithoutPassword));
+            return userWithoutPassword;
+        } catch (error) {
+            throw error;
+        }
     }
 
-    function login(email, password) {
-        const user = findUserByEmail(email);
+    async function login(email, password) {
+        try {
+            const user = await findUserByEmail(email);
+            if (!user || user.password !== password) {
+                throw new Error('Invalid email or password');
+            }
 
-        if (!user || user.password !== password) {
-            return Promise.reject(new Error('Invalid email or password'));
+            const { password: _, ...userWithoutPassword } = user;
+            setCurrentUser(userWithoutPassword);
+            sessionStorage.setItem('currentUser', JSON.stringify(userWithoutPassword));
+            return userWithoutPassword;
+        } catch (error) {
+            throw error;
         }
-
-        // Remove password from user object before storing in state
-        const { password: _, ...userWithoutPassword } = user;
-        setCurrentUser(userWithoutPassword);
-        // Save current user to session storage
-        sessionStorage.setItem('currentUser', JSON.stringify(userWithoutPassword));
-        return Promise.resolve(userWithoutPassword);
     }
 
     function logout() {
@@ -68,4 +72,4 @@ export function AuthProvider({ children }) {
             {!loading && children}
         </AuthContext.Provider>
     );
-} 
+}

@@ -1,100 +1,171 @@
-// This service handles all data operations using localStorage
-
-const LOCAL_STORAGE_USERS_KEY = 'file_sharing_users';
-const LOCAL_STORAGE_FILES_KEY = 'file_sharing_files';
-
-// Initialize local storage with default data if empty
-const initializeStorage = () => {
-    if (!localStorage.getItem(LOCAL_STORAGE_USERS_KEY)) {
-        localStorage.setItem(LOCAL_STORAGE_USERS_KEY, JSON.stringify([]));
-    }
-
-    if (!localStorage.getItem(LOCAL_STORAGE_FILES_KEY)) {
-        localStorage.setItem(LOCAL_STORAGE_FILES_KEY, JSON.stringify([]));
-    }
-};
+const API_BASE = '/api';  // This will be proxied to http://localhost:3001/api
 
 // User methods
-export const getUsers = () => {
-    initializeStorage();
-    return JSON.parse(localStorage.getItem(LOCAL_STORAGE_USERS_KEY));
+export const getUsers = async () => {
+    const response = await fetch(`${API_BASE}/users`);
+    if (!response.ok) throw new Error('Failed to fetch users');
+    return response.json();
 };
 
-export const saveUsers = (users) => {
-    localStorage.setItem(LOCAL_STORAGE_USERS_KEY, JSON.stringify(users));
-};
-
-export const findUserByEmail = (email) => {
-    const users = getUsers();
+export const findUserByEmail = async (email) => {
+    const users = await getUsers();
     return users.find(user => user.email === email);
 };
 
-export const createUser = (email, password) => {
-    const users = getUsers();
-    const newUser = {
-        uid: Date.now().toString(),
-        email,
-        password, // In a real app, you would hash this password
-        createdAt: new Date().toISOString()
-    };
-
-    users.push(newUser);
-    saveUsers(users);
-    return newUser;
+export const createUser = async (email, password) => {
+    const response = await fetch(`${API_BASE}/users`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, createdAt: new Date().toISOString() })
+    });
+    if (!response.ok) throw new Error('Failed to create user');
+    return response.json();
 };
 
 // File methods
-export const getFiles = () => {
-    initializeStorage();
-    return JSON.parse(localStorage.getItem(LOCAL_STORAGE_FILES_KEY));
+export const getFiles = async () => {
+    const response = await fetch(`${API_BASE}/files`);
+    if (!response.ok) throw new Error('Failed to fetch files');
+    return response.json();
 };
 
-export const saveFiles = (files) => {
-    localStorage.setItem(LOCAL_STORAGE_FILES_KEY, JSON.stringify(files));
-};
+export const addFile = async (fileData) => {
+    try {
+        // Handle folders differently than regular files
+        if (fileData.isFolder) {
+            // For folders, don't upload files but just save metadata
+            const response = await fetch(`${API_BASE}/files`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(fileData)
+            });
 
-export const addFile = (fileData) => {
-    const files = getFiles();
-    const newFile = {
-        id: Date.now().toString(),
-        ...fileData,
-        createdAt: new Date().toISOString()
-    };
+            if (!response.ok) {
+                throw new Error('Failed to share folder');
+            }
 
-    files.push(newFile);
-    saveFiles(files);
-    return newFile;
-};
+            return response.json();
+        } else {
+            // Regular file upload logic
+            const formData = new FormData();
+            formData.append('file', fileData.file);
 
-export const updateFile = (fileId, updates) => {
-    const files = getFiles();
-    const fileIndex = files.findIndex(file => file.id === fileId);
+            // Add other metadata
+            const metadata = {
+                ownerId: fileData.ownerId,
+                ownerEmail: fileData.ownerEmail,
+                sharedWith: fileData.sharedWith || [],
+                allowDownload: fileData.allowDownload || false,
+            };
 
-    if (fileIndex !== -1) {
-        files[fileIndex] = { ...files[fileIndex], ...updates };
-        saveFiles(files);
-        return files[fileIndex];
+            formData.append('metadata', JSON.stringify(metadata));
+
+            const response = await fetch(`${API_BASE}/files`, {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to upload file');
+            }
+
+            const result = await response.json();
+
+            // Fix URL to be absolute for blob URLs and relative URLs
+            if (result.url && !result.url.startsWith('http') && !result.url.startsWith('blob:')) {
+                result.url = window.location.origin + result.url;
+            }
+
+            return result;
+        }
+    } catch (error) {
+        throw error;
     }
-    return null;
 };
 
-export const deleteFile = (fileId) => {
-    const files = getFiles();
-    const newFiles = files.filter(file => file.id !== fileId);
-    saveFiles(newFiles);
+export const updateFile = async (fileId, updates) => {
+    const response = await fetch(`${API_BASE}/files/${fileId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates)
+    });
+    if (!response.ok) throw new Error('Failed to update file');
+    return response.json();
 };
 
-export const getUserFiles = (userId) => {
-    const files = getFiles();
+export const deleteFile = async (fileId) => {
+    const response = await fetch(`${API_BASE}/files/${fileId}`, {
+        method: 'DELETE'
+    });
+    if (!response.ok) throw new Error('Failed to delete file');
+    return response.json();
+};
+
+export const getUserFiles = async (userId) => {
+    const files = await getFiles();
     return files.filter(file => file.ownerId === userId);
 };
 
-export const getSharedFiles = (userEmail) => {
-    const files = getFiles();
-    return files.filter(file => file.sharedWith && file.sharedWith.includes(userEmail));
+export const getSharedFiles = async (userEmail) => {
+    try {
+        const files = await getFiles();
+        return files.filter(file => {
+            return file.sharedWith &&
+                Array.isArray(file.sharedWith) &&
+                file.sharedWith.includes(userEmail);
+        });
+    } catch (error) {
+        throw error;
+    }
 };
 
-export const getFileById = (fileId) => {
-    const files = getFiles();
-    return files.find(file => file.id === fileId);
-}; 
+export const getFileById = async (fileId) => {
+    try {
+        const response = await fetch(`${API_BASE}/files/${fileId}`);
+        if (!response.ok) {
+            throw new Error(`Failed to fetch file: ${response.statusText}`);
+        }
+        const data = await response.json();
+
+        // Fix URL to be absolute for relative URLs
+        if (data.url && !data.url.startsWith('http') && !data.url.startsWith('blob:')) {
+            data.url = window.location.origin + data.url;
+        }
+
+        return data;
+    } catch (error) {
+        throw error;
+    }
+};
+
+// Mark a folder as connected
+export const markFolderConnected = async (folderId, userId) => {
+    try {
+        const response = await fetch(`${API_BASE}/files/${folderId}/connect`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId })
+        });
+
+        if (!response.ok) {
+            let errorMsg;
+            try {
+                const errorData = await response.json();
+                errorMsg = errorData.error || response.statusText;
+            } catch (e) {
+                errorMsg = await response.text() || response.statusText;
+            }
+
+            return {
+                success: false,
+                error: `Server error (${response.status}): ${errorMsg}`
+            };
+        }
+
+        // Parse the response
+        const result = await response.json();
+        return { success: true, data: result };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+};
