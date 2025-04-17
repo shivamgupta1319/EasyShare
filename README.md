@@ -25,6 +25,7 @@ A React-based file sharing application that allows users to securely share files
 - Bootstrap 5
 - Local Storage for data persistence
 - File System Access API for folder access
+- IndexedDB for persistent folder references
 
 ## Getting Started
 
@@ -58,6 +59,20 @@ The application will run at `http://localhost:3000`
 5. Control download permissions for shared files
 6. View shared files in the "Shared with Me" section
 
+## Folder Sharing Feature
+
+The folder sharing feature allows users to share access to local folders without uploading the content:
+
+1. Click "Select Folder to Share" to choose a local folder
+2. The application creates a reference to this folder in the database
+3. The folder can be shared with other users by email
+4. When accessing a shared folder:
+   - Folder owners need to reconnect to their folders after page refreshes
+   - Shared users can view folder contents after the owner connects
+5. The folder access uses File System Access API and permissions
+
+**Note**: Due to browser security restrictions, folder access requires re-authentication after each page refresh or browser restart. This is a security feature of the File System Access API.
+
 ## Browser Compatibility
 
 - The folder sharing feature requires a modern browser that supports the File System Access API
@@ -70,6 +85,7 @@ The application will run at `http://localhost:3000`
   - `/components` - React components
   - `/contexts` - Context providers
   - `/services` - Data services
+  - `/utils` - Utility functions including folder persistence
   - `App.js` - Main application component
   - `index.js` - Application entry point
 
