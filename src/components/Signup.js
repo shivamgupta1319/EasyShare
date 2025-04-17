@@ -22,7 +22,8 @@ export default function Signup() {
             setError('');
             setLoading(true);
             await signup(email, password);
-            navigate('/');
+            // Only navigate after successful signup
+            navigate('/', { replace: true }); // Added replace: true to prevent going back to signup
         } catch (error) {
             setError('Failed to create an account: ' + error.message);
         } finally {
@@ -76,4 +77,4 @@ export default function Signup() {
             </div>
         </div>
     );
-} 
+}

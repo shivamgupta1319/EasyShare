@@ -6,43 +6,58 @@ import FileCard from './FileCard';
 
 export default function SharedFiles() {
     const [sharedFiles, setSharedFiles] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
     const { currentUser } = useAuth();
 
-    function fetchSharedFiles() {
-        const files = getSharedFiles(currentUser.email);
-        setSharedFiles(files);
-    }
-
     useEffect(() => {
-        if (currentUser) {
-            fetchSharedFiles();
+        async function fetchSharedFiles() {
+            if (!currentUser) return;
+
+            try {
+                setLoading(true);
+                const files = await getSharedFiles(currentUser.email);
+                setSharedFiles(files);
+                setError('');
+            } catch (err) {
+                setError('Failed to load shared files');
+            } finally {
+                setLoading(false);
+            }
         }
+
+        fetchSharedFiles();
     }, [currentUser]);
-
-
 
     return (
         <div className="container">
             <h2 className="mb-4">Files Shared With Me</h2>
 
-            <div className="row">
-                {sharedFiles.length > 0 ? (
-                    sharedFiles.map(file => (
+            {loading ? (
+                <div className="text-center">
+                    <div className="spinner-border" role="status">
+                        <span className="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            ) : error ? (
+                <div className="alert alert-danger">{error}</div>
+            ) : sharedFiles.length > 0 ? (
+                <div className="row">
+                    {sharedFiles.map(file => (
                         <div className="col-md-4 mb-3" key={file.id}>
                             <FileCard
                                 file={file}
                                 isOwner={false}
+                                onToggleDownload={() => { }}
                             />
                         </div>
-                    ))
-                ) : (
-                    <div className="col-12">
-                        <div className="alert alert-info">
-                            No files have been shared with you yet.
-                        </div>
-                    </div>
-                )}
-            </div>
+                    ))}
+                </div>
+            ) : (
+                <div className="alert alert-info">
+                    No files have been shared with you yet.
+                </div>
+            )}
         </div>
     );
-} 
+}

@@ -15,13 +15,13 @@ export default function FileCard({ file, isOwner, onToggleDownload, onShare, onD
     function getFileIcon() {
         if (file.isFolder) {
             return '📁';
-        } else if (file.type.includes('image')) {
+        } else if (file.type && file.type.includes('image')) {
             return '🖼️';
-        } else if (file.type.includes('video')) {
+        } else if (file.type && file.type.includes('video')) {
             return '🎬';
-        } else if (file.type.includes('audio')) {
+        } else if (file.type && file.type.includes('audio')) {
             return '🎵';
-        } else if (file.type.includes('pdf')) {
+        } else if (file.type && file.type.includes('pdf')) {
             return '📄';
         } else {
             return '📄';
@@ -56,7 +56,7 @@ export default function FileCard({ file, isOwner, onToggleDownload, onShare, onD
 
                 <div className="d-grid gap-2">
                     <Link to={`/file/${file.id}`} className="btn btn-primary">
-                        {file.isFolder ? 'Open Folder' : 'View File'}
+                        {file.isFolder ? 'Access Folder' : 'View File'}
                     </Link>
 
                     {isOwner && (
@@ -77,6 +77,18 @@ export default function FileCard({ file, isOwner, onToggleDownload, onShare, onD
                                 </button>
                             )}
                         </>
+                    )}
+
+                    {!isOwner && file.allowDownload && !file.isFolder && (
+                        <a
+                            href={file.url}
+                            download={file.name}
+                            className="btn btn-success"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                        >
+                            Download File
+                        </a>
                     )}
                 </div>
 
@@ -108,4 +120,4 @@ export default function FileCard({ file, isOwner, onToggleDownload, onShare, onD
             </div>
         </div>
     );
-} 
+}
